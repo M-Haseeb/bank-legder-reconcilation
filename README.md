@@ -13,6 +13,30 @@ run for audit.
 | MySQL | 8.0+ |
 | Gradle | via the bundled wrapper (`./gradlew`) |
 
+## Local configuration
+
+No credentials are committed to the repository. Supply them as environment
+variables, or in an untracked `application-local.properties` at the project
+root. Both mechanisms override the values in
+[`application.properties`](src/main/resources/application.properties).
+
+```bash
+cp .env.example .env            # edit the placeholder values
+set -a; source .env; set +a     # export them into the shell
+```
+
+Or create `application-local.properties`:
+
+```properties
+spring.datasource.username=your-db-user
+spring.datasource.password=your-db-password
+app.security.username=choose-a-username
+app.security.password=choose-a-strong-password
+```
+
+`.env` and `application-local.properties` are gitignored. The application
+refuses to start until the Basic-auth username and password are supplied.
+
 ## Database
 
 The application expects a schema named `bank_ledger`:
@@ -23,15 +47,10 @@ CREATE DATABASE IF NOT EXISTS bank_ledger
   COLLATE utf8mb4_unicode_ci;
 ```
 
-Connection settings live in
-[`src/main/resources/application.properties`](src/main/resources/application.properties)
-and default to `root` / `root` on `localhost:3306`. Override without editing the
-file:
-
-```bash
-export DB_USERNAME=root
-export DB_PASSWORD=yourpassword
-```
+The connection URL lives in
+[`src/main/resources/application.properties`](src/main/resources/application.properties);
+the username and password come from `DB_USERNAME` / `DB_PASSWORD` (see
+[Local configuration](#local-configuration)).
 
 Hibernate owns the schema (`spring.jpa.hibernate.ddl-auto=update`), so tables are
 created on first start. Demo data is inserted when the table is empty; disable it
@@ -51,15 +70,11 @@ running MySQL server.
 ## Security
 
 HTTP Basic is enabled on every endpoint except `/actuator/health` and
-`/actuator/info`. The default credentials are:
-
-- username: `ledger`
-- password: `ledger123`
-
-Change them with `APP_SECURITY_USERNAME` / `APP_SECURITY_PASSWORD`.
+`/actuator/info`. Credentials are required at startup (see
+[Local configuration](#local-configuration)); there are no built-in defaults.
 
 ```bash
-curl -u ledger:ledger123 http://localhost:8080/api/accounts
+curl -u "$APP_SECURITY_USERNAME:$APP_SECURITY_PASSWORD" http://localhost:8080/api/accounts
 ```
 
 ## API
@@ -90,7 +105,7 @@ All paths are under `/api/accounts/{accountId}`.
 ### Example: create an account
 
 ```bash
-curl -u ledger:ledger123 -X POST http://localhost:8080/api/accounts \
+curl -u "$APP_SECURITY_USERNAME:$APP_SECURITY_PASSWORD" -X POST http://localhost:8080/api/accounts \
   -H 'Content-Type: application/json' \
   -d '{
         "accountNumber": "000987654321",
@@ -106,7 +121,7 @@ curl -u ledger:ledger123 -X POST http://localhost:8080/api/accounts \
 ### Example: import statement lines
 
 ```bash
-curl -u ledger:ledger123 -X POST http://localhost:8080/api/accounts/1/statements \
+curl -u "$APP_SECURITY_USERNAME:$APP_SECURITY_PASSWORD" -X POST http://localhost:8080/api/accounts/1/statements \
   -H 'Content-Type: application/json' \
   -d '{
         "entries": [
@@ -119,17 +134,25 @@ curl -u ledger:ledger123 -X POST http://localhost:8080/api/accounts/1/statements
 ### Example: run reconciliation
 
 ```bash
-curl -u ledger:ledger123 -X POST http://localhost:8080/api/accounts/1/reconciliations \
+curl -u "$APP_SECURITY_USERNAME:$APP_SECURITY_PASSWORD" -X POST http://localhost:8080/api/accounts/1/reconciliations \
   -H 'Content-Type: application/json' \
   -d '{"periodStart": "2026-01-01", "periodEnd": "2026-01-31"}'
 ```
+
+## Money handling
+
+All monetary values are `BigDecimal` with a fixed scale of 4 decimal places and
+`RoundingMode.HALF_UP`, defined once in
+[`domain/Money.java`](src/main/java/com/banking/ledger/reconciliation/domain/Money.java).
+`double` / `float` are never used for amounts or balances.
 
 ## Matching rules
 
 A statement line is matched to an unused ledger entry when:
 
 1. the entry type is identical (`DEBIT` / `CREDIT`), and
-2. the amount is identical to 4 decimal places, and
+2. the amount is identical after normalising both sides to 4 decimal places
+   (`HALF_UP`), and
 3. the dates are within ±3 days.
 
 When several ledger entries qualify, the closest by date wins. The run records
@@ -141,10 +164,10 @@ future runs.
 ## Project layout
 
 ```
-src/main/java/com/banking/ledger/Reconcilation/
+src/main/java/com/banking/ledger/reconciliation/
 ├── config/        # typed properties, security, demo seed
 ├── controller/    # REST endpoints
-├── domain/        # JPA entities + enums
+├── domain/        # JPA entities, enums, Money value rules
 ├── dto/           # request/response records
 ├── exception/     # API exceptions + RFC 9457 error handling
 ├── repository/    # Spring Data JPA repositories
@@ -156,11 +179,11 @@ src/main/java/com/banking/ledger/Reconcilation/
 
 | Property | Default | Purpose |
 |----------|---------|---------|
-| `DB_USERNAME` | `root` | MySQL user |
-| `DB_PASSWORD` | `root` | MySQL password |
+| `DB_USERNAME` | — (required) | MySQL user |
+| `DB_PASSWORD` | — (required) | MySQL password |
 | `APP_SEED_ENABLED` | `true` | Load demo data on first start |
-| `APP_SECURITY_USERNAME` | `ledger` | Basic-auth user |
-| `APP_SECURITY_PASSWORD` | `ledger123` | Basic-auth password |
+| `APP_SECURITY_USERNAME` | — (required) | Basic-auth user |
+| `APP_SECURITY_PASSWORD` | — (required) | Basic-auth password |
 | `app.cors.allowed-origins` | localhost:3000 / 5173 | Allowed browser origins |
 | `server.port` | `8080` | HTTP port |
 
