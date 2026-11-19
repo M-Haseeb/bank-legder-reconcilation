@@ -4,6 +4,7 @@ import com.banking.ledger.reconciliation.domain.enums.AccountStatus;
 import com.banking.ledger.reconciliation.domain.enums.AccountType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -18,6 +19,9 @@ import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -27,6 +31,7 @@ import java.time.ZoneOffset;
  * A bank account whose ledger is reconciled against imported bank statements.
  */
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(
         name = "bank_accounts",
         uniqueConstraints = @UniqueConstraint(
@@ -74,6 +79,14 @@ public class BankAccount {
     @Version
     @Column(name = "version", nullable = false)
     private Long version;
+
+    @CreatedBy
+    @Column(name = "created_by", length = 120, updatable = false)
+    private String createdBy;
+
+    @LastModifiedBy
+    @Column(name = "updated_by", length = 120)
+    private String updatedBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

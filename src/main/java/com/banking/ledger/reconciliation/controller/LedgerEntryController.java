@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ public class LedgerEntryController {
     private final LedgerEntryService ledgerEntryService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT')")
     public ResponseEntity<LedgerEntryResponse> create(
             @PathVariable Long accountId, @Valid @RequestBody LedgerEntryRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -32,6 +34,7 @@ public class LedgerEntryController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','AUDITOR')")
     public PageResponse<LedgerEntryResponse> list(
             @PathVariable Long accountId,
             @RequestParam(defaultValue = "0") int page,
@@ -40,11 +43,13 @@ public class LedgerEntryController {
     }
 
     @GetMapping("/{entryId}")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','AUDITOR')")
     public LedgerEntryResponse get(@PathVariable Long accountId, @PathVariable Long entryId) {
         return ledgerEntryService.get(accountId, entryId);
     }
 
     @DeleteMapping("/{entryId}")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT')")
     public ResponseEntity<Void> delete(@PathVariable Long accountId, @PathVariable Long entryId) {
         ledgerEntryService.delete(accountId, entryId);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();

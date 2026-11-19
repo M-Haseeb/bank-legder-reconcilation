@@ -3,12 +3,14 @@ package com.banking.ledger.reconciliation.service.impl;
 import com.banking.ledger.reconciliation.domain.BankAccount;
 import com.banking.ledger.reconciliation.domain.BankStatementEntry;
 import com.banking.ledger.reconciliation.domain.Money;
+import com.banking.ledger.reconciliation.domain.enums.AuditAction;
 import com.banking.ledger.reconciliation.domain.enums.StatementStatus;
 import com.banking.ledger.reconciliation.dto.PageResponse;
 import com.banking.ledger.reconciliation.dto.StatementDtos.StatementEntryRequest;
 import com.banking.ledger.reconciliation.dto.StatementDtos.StatementEntryResponse;
 import com.banking.ledger.reconciliation.exception.ResourceNotFoundException;
 import com.banking.ledger.reconciliation.repository.BankStatementEntryRepository;
+import com.banking.ledger.reconciliation.service.AuditService;
 import com.banking.ledger.reconciliation.service.BankAccountService;
 import com.banking.ledger.reconciliation.service.BankStatementService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class BankStatementServiceImpl implements BankStatementService {
 
     private final BankStatementEntryRepository statementRepository;
     private final BankAccountService bankAccountService;
+    private final AuditService auditService;
 
     @Override
     @Transactional
@@ -46,7 +49,10 @@ public class BankStatementServiceImpl implements BankStatementService {
             saved.add(entry);
         }
 
-        return statementRepository.saveAll(saved).stream()
+        List<BankStatementEntry> persisted = statementRepository.saveAll(saved);
+        auditService.record(AuditAction.STATEMENTS_IMPORTED, "BankStatementEntry", null,
+                "accountId=" + accountId + "; count=" + persisted.size());
+        return persisted.stream()
                 .map(StatementEntryResponse::from)
                 .toList();
     }
@@ -70,14 +76,22 @@ public class BankStatementServiceImpl implements BankStatementService {
     @Transactional
     public StatementEntryResponse exclude(Long accountId, Long entryId) {
         BankStatementEntry entry = requireEntry(accountId, entryId);
+        StatementStatus previous = entry.getStatus();
         entry.setStatus(StatementStatus.EXCLUDED);
-        return StatementEntryResponse.from(statementRepository.save(entry));
+        BankStatementEntry saved = statementRepository.save(entry);
+        auditService.record(AuditAction.STATEMENT_EXCLUDED, "BankStatementEntry", entryId,
+                "accountId=" + accountId + "; from=" + previous + "; to=" + StatementStatus.EXCLUDED);
+        return StatementEntryResponse.from(saved);
     }
 
     @Override
     @Transactional
     public void delete(Long accountId, Long entryId) {
-        statementRepository.delete(requireEntry(accountId, entryId));
+        BankStatementEntry entry = requireEntry(accountId, entryId);
+        String details = "accountId=" + accountId + "; reference=" + entry.getReference()
+                + "; amount=" + entry.getAmount() + "; status=" + entry.getStatus();
+        statementRepository.delete(entry);
+        auditService.record(AuditAction.STATEMENT_DELETED, "BankStatementEntry", entryId, details);
     }
 
     private BankStatementEntry requireEntry(Long accountId, Long entryId) {

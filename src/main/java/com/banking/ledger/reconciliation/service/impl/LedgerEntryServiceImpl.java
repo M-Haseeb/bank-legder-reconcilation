@@ -3,12 +3,14 @@ package com.banking.ledger.reconciliation.service.impl;
 import com.banking.ledger.reconciliation.domain.BankAccount;
 import com.banking.ledger.reconciliation.domain.LedgerEntry;
 import com.banking.ledger.reconciliation.domain.Money;
+import com.banking.ledger.reconciliation.domain.enums.AuditAction;
 import com.banking.ledger.reconciliation.dto.LedgerDtos.LedgerEntryRequest;
 import com.banking.ledger.reconciliation.dto.LedgerDtos.LedgerEntryResponse;
 import com.banking.ledger.reconciliation.dto.PageResponse;
 import com.banking.ledger.reconciliation.exception.BusinessRuleException;
 import com.banking.ledger.reconciliation.exception.ResourceNotFoundException;
 import com.banking.ledger.reconciliation.repository.LedgerEntryRepository;
+import com.banking.ledger.reconciliation.service.AuditService;
 import com.banking.ledger.reconciliation.service.BankAccountService;
 import com.banking.ledger.reconciliation.service.LedgerEntryService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class LedgerEntryServiceImpl implements LedgerEntryService {
 
     private final LedgerEntryRepository ledgerEntryRepository;
     private final BankAccountService bankAccountService;
+    private final AuditService auditService;
 
     @Override
     @Transactional
@@ -46,6 +49,9 @@ public class LedgerEntryServiceImpl implements LedgerEntryService {
 
         LedgerEntry saved = ledgerEntryRepository.save(entry);
         account.setCurrentBalance(balanceAfter);
+        auditService.record(AuditAction.LEDGER_ENTRY_CREATED, "LedgerEntry", saved.getId(),
+                "accountId=" + account.getId() + "; type=" + saved.getType()
+                        + "; amount=" + saved.getAmount() + "; balanceAfter=" + saved.getBalanceAfter());
         return LedgerEntryResponse.from(saved);
     }
 
@@ -75,7 +81,11 @@ public class LedgerEntryServiceImpl implements LedgerEntryService {
         BankAccount account = entry.getBankAccount();
         account.setCurrentBalance(
                 Money.of(account.getCurrentBalance().subtract(entry.getType().applySign(entry.getAmount()))));
+        String reversal = "accountId=" + accountId + "; type=" + entry.getType()
+                + "; amount=" + entry.getAmount() + "; entryDate=" + entry.getEntryDate()
+                + "; balanceAfter=" + account.getCurrentBalance();
         ledgerEntryRepository.delete(entry);
+        auditService.record(AuditAction.LEDGER_ENTRY_DELETED, "LedgerEntry", entryId, reversal);
     }
 
     private LedgerEntry requireEntry(Long accountId, Long entryId) {

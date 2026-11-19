@@ -4,6 +4,7 @@ import com.banking.ledger.reconciliation.domain.enums.EntryType;
 import com.banking.ledger.reconciliation.domain.enums.StatementStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -19,6 +20,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,6 +32,7 @@ import java.time.ZoneOffset;
  * A line imported from the bank's statement, to be matched against ledger entries.
  */
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(
         name = "bank_statement_entries",
         indexes = {
@@ -81,6 +85,10 @@ public class BankStatementEntry {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reconciliation_run_id")
     private ReconciliationRun reconciliationRun;
+
+    @CreatedBy
+    @Column(name = "created_by", length = 120, updatable = false)
+    private String createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

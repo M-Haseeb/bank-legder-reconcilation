@@ -3,6 +3,7 @@ package com.banking.ledger.reconciliation.domain;
 import com.banking.ledger.reconciliation.domain.enums.EntryType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -18,6 +19,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,6 +31,7 @@ import java.time.ZoneOffset;
  * A single line in the internal ledger for a {@link BankAccount}.
  */
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(
         name = "ledger_entries",
         indexes = {
@@ -79,6 +83,10 @@ public class LedgerEntry {
     /** True once this line has been matched during a reconciliation run. */
     @Column(name = "reconciled", nullable = false)
     private boolean reconciled;
+
+    @CreatedBy
+    @Column(name = "created_by", length = 120, updatable = false)
+    private String createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
