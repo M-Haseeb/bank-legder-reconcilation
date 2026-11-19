@@ -3,6 +3,7 @@ package com.banking.ledger.reconciliation.domain;
 import com.banking.ledger.reconciliation.domain.enums.RunStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -18,6 +19,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,6 +31,7 @@ import java.time.ZoneOffset;
  * An immutable audit record of one reconciliation attempt over a date range.
  */
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(
         name = "reconciliation_runs",
         indexes = @Index(name = "idx_reconciliation_runs_account_started", columnList = "bank_account_id, started_at"))
@@ -77,6 +81,10 @@ public class ReconciliationRun {
 
     @Column(name = "notes", length = 500)
     private String notes;
+
+    @CreatedBy
+    @Column(name = "created_by", length = 120, updatable = false)
+    private String createdBy;
 
     @Column(name = "started_at", nullable = false, updatable = false)
     private LocalDateTime startedAt;

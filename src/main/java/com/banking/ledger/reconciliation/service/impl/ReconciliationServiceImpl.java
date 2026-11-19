@@ -5,6 +5,7 @@ import com.banking.ledger.reconciliation.domain.BankStatementEntry;
 import com.banking.ledger.reconciliation.domain.LedgerEntry;
 import com.banking.ledger.reconciliation.domain.Money;
 import com.banking.ledger.reconciliation.domain.ReconciliationRun;
+import com.banking.ledger.reconciliation.domain.enums.AuditAction;
 import com.banking.ledger.reconciliation.domain.enums.EntryType;
 import com.banking.ledger.reconciliation.domain.enums.RunStatus;
 import com.banking.ledger.reconciliation.domain.enums.StatementStatus;
@@ -16,6 +17,7 @@ import com.banking.ledger.reconciliation.exception.ResourceNotFoundException;
 import com.banking.ledger.reconciliation.repository.BankStatementEntryRepository;
 import com.banking.ledger.reconciliation.repository.LedgerEntryRepository;
 import com.banking.ledger.reconciliation.repository.ReconciliationRunRepository;
+import com.banking.ledger.reconciliation.service.AuditService;
 import com.banking.ledger.reconciliation.service.BankAccountService;
 import com.banking.ledger.reconciliation.service.ReconciliationService;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,7 @@ public class ReconciliationServiceImpl implements ReconciliationService {
     private final BankStatementEntryRepository statementRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final BankAccountService bankAccountService;
+    private final AuditService auditService;
 
     @Override
     @Transactional
@@ -121,6 +124,11 @@ public class ReconciliationServiceImpl implements ReconciliationService {
 
         log.info("Reconciliation run {} for account {}: {} matched, {} unmatched",
                 run.getId(), accountId, matched, unmatched);
+
+        auditService.record(AuditAction.RECONCILIATION_RUN, "ReconciliationRun", run.getId(),
+                "accountId=" + accountId + "; period=" + request.periodStart() + ".." + request.periodEnd()
+                        + "; matched=" + matched + "; unmatched=" + unmatched
+                        + "; netDifference=" + run.getNetDifference());
 
         return ReconciliationRunResponse.from(run);
     }

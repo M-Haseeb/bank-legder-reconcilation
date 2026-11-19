@@ -12,6 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -34,6 +35,7 @@ public class BankAccountController {
     private final BankAccountService accountService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT')")
     public ResponseEntity<AccountResponse> create(@Valid @RequestBody AccountRequest request) {
         AccountResponse created = accountService.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -44,6 +46,7 @@ public class BankAccountController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','AUDITOR')")
     public PageResponse<AccountResponse> list(
             @RequestParam(required = false) AccountStatus status,
             @RequestParam(defaultValue = "0") int page,
@@ -52,22 +55,26 @@ public class BankAccountController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT','AUDITOR')")
     public AccountResponse get(@PathVariable Long id) {
         return accountService.get(id);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT')")
     public AccountResponse update(@PathVariable Long id, @Valid @RequestBody AccountRequest request) {
         return accountService.update(id, request);
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN','ACCOUNTANT')")
     public AccountResponse changeStatus(
             @PathVariable Long id, @Valid @RequestBody AccountStatusRequest request) {
         return accountService.changeStatus(id, request.status());
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         accountService.delete(id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
